@@ -33,7 +33,7 @@ class ParticleDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        part_traj = self.data[idx] * 10
+        part_traj = self.data[idx]
         if self.transform:
             part_traj = self.transform(part_traj)
 
