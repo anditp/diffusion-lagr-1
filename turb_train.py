@@ -36,6 +36,13 @@ def main():
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
+    
+    nr = 0
+    for p in model.parameters():
+        nr += torch.numel(p)
+    
+    logger.log(nr)
+    
     logger.log(model)
     logger.log(replica_count)
     
