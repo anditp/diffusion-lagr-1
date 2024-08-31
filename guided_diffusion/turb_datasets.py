@@ -37,7 +37,7 @@ class ParticleDataset(Dataset):
         if self.transform:
             part_traj = self.transform(part_traj)
 
-        return part_traj
+        return part_traj * 10
 
 
 class TakeOneCoord(object):
