@@ -229,10 +229,10 @@ class TrainLoop:
         return loss, grad_norm
 
     def forward_backward(self, batch):
-        self.mp_trainer.zero_grad()
+        self.mp_trainer.zero_grad()  # Zero gradients at the beginning of each BATCH
+        total_loss = 0.0
         for i in range(0, batch.shape[0], self.microbatch):
             micro = batch[i : i + self.microbatch].to(self.device)
-            last_batch = (i + self.microbatch) >= batch.shape[0]
             t, weights = self.schedule_sampler.sample(micro.shape[0], self.device)
 
             compute_losses = functools.partial(
@@ -242,8 +242,7 @@ class TrainLoop:
                 t,
             )
 
-            with self.model.no_sync():
-                losses = compute_losses()
+            losses = compute_losses()
 
             if isinstance(self.schedule_sampler, LossAwareSampler):
                 self.schedule_sampler.update_with_local_losses(
@@ -251,12 +250,16 @@ class TrainLoop:
                 )
 
             loss = (losses["loss"] * weights).mean()
+            total_loss += loss.item() * micro.shape[0] # Accumulate loss for logging
+
             log_loss_dict(
                 self.diffusion, t, {k: v * weights for k, v in losses.items()}
             )
-            self.mp_trainer.backward(loss)
-            grad_norm = th.sqrt(sum([th.norm(p.grad)**2 for p in self.model.parameters()]))
-            return loss, grad_norm
+            loss = loss / (batch.shape[0] // self.microbatch) # Average loss across microbatches
+            self.mp_trainer.backward(loss) # Backpropagate for microbatch
+
+        grad_norm = th.sqrt(sum([th.norm(p.grad)**2 for p in self.model.parameters()])) # Calculate gradient norm after accumulating gradients
+        return total_loss/batch.shape[0], grad_norm # Return averaged loss
 
     def _update_ema(self):
         for rate, params in zip(self.ema_rate, self.ema_params):
