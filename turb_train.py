@@ -67,7 +67,7 @@ def create_argparser():
         log_interval=1000,
         save_interval=10000,
         resume_checkpoint="",
-        use_fp16=False,
+        use_fp16=True,
         fp16_scale_growth=1e-3,
         coordinate = None,
     )
